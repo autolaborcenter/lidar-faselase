@@ -5,7 +5,7 @@ use std::{thread, time::Duration};
 fn main() {
     D10Supervisor::new().join(|e| {
         match e {
-            Connected(_) => println!("Connected."),
+            Connected(_, _) => println!("Connected."),
             ConnectFailed => {
                 println!("Failed.");
                 thread::sleep(Duration::from_secs(1));

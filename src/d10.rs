@@ -28,7 +28,7 @@ impl Driver<String> for D10 {
     type Status = D10Frame;
     type Command = ();
 
-    fn new(name: String) -> Option<(Self::Pacemaker, Self)> {
+    fn new(name: &String) -> Option<(Self::Pacemaker, Self)> {
         match Port::open(
             name.as_str(),
             460800,
@@ -41,7 +41,7 @@ impl Driver<String> for D10 {
                     buffer: Default::default(),
                     last_time: Instant::now(),
 
-                    frame: D10Frame(VecDeque::with_capacity(300), VecDeque::with_capacity(300)),
+                    frame: D10Frame(VecDeque::new(), VecDeque::new()),
                 },
             )),
             Err(_) => None,
@@ -70,7 +70,6 @@ impl Driver<String> for D10 {
                 time = self.last_time;
                 // dir>=5760 的不是采样数据，不知道有什么用
                 if p.dir < 5760 {
-                    self.frame.update(p);
                     if !f(self, Some((time, p))) {
                         // 如果回调指示不要继续阻塞，立即退出
                         return true;

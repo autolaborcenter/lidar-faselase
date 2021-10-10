@@ -1,5 +1,6 @@
 use driver::SupervisorForSingle;
 use serial_port::{Port, SerialPort};
+use std::time::Duration;
 
 pub mod d10;
 pub mod zip;
@@ -17,6 +18,11 @@ impl D10Supervisor {
 impl SupervisorForSingle<String, D10> for D10Supervisor {
     fn context<'a>(&'a mut self) -> &'a mut Box<Option<D10>> {
         &mut self.0
+    }
+
+    fn open_timeout() -> Duration {
+        const TIMEOUT: Duration = Duration::from_secs(3);
+        TIMEOUT
     }
 
     fn keys() -> Vec<String> {
