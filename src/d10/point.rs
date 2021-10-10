@@ -1,4 +1,4 @@
-﻿#[derive(Clone, Copy)]
+﻿#[derive(Clone, Copy, Debug)]
 pub struct Point {
     pub len: u16,
     pub dir: u16,
@@ -36,9 +36,9 @@ impl TryFrom<u32> for Point {
             let len = (l2 << 8) | (l1 << 1) | l0;
             let dir = (d1 << 7) | d0;
             if len < 0x800 {
-                Err(())
-            } else {
                 Ok(Self { len, dir })
+            } else {
+                Err(())
             }
         } else {
             Err(())
