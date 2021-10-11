@@ -1,22 +1,22 @@
-﻿use driver::{SupersivorEventForSingle::*, SupervisorForSingle};
-use lidar_faselase::D10Supervisor;
-use std::{thread, time::Duration};
+﻿use driver::{SupervisorEventForMultiple::*, SupervisorForMultiple};
+use lidar_faselase::*;
+use std::{thread::sleep, time::Duration};
 
 fn main() {
-    D10Supervisor::new().join(|e| {
+    SupervisorForMultiple::<String, d10::D10>::new().join(2, |e| {
         match e {
-            Connected(_, _) => println!("Connected."),
-            ConnectFailed => {
-                println!("Failed.");
-                thread::sleep(Duration::from_secs(1));
+            Connected(name, _) => println!("connected: {}", name),
+            ConnectFailed {
+                current,
+                target,
+                begining: _,
+            } => {
+                println!("{}/{}", current, target);
+                sleep(Duration::from_secs(1));
             }
-            Disconnected => {
-                println!("Disconnected.");
-                thread::sleep(Duration::from_secs(1));
-            }
-            Event(_, Some((_, event))) => println!("Event: {:?}", event),
-            Event(_, None) => {}
-        };
+            Event(_, _) => {}
+            Disconnected(name) => println!("disconnected: {}", name),
+        }
         true
     });
 }

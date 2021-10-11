@@ -11,6 +11,7 @@ use point::{Point, PortBuffer};
 
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
 const POINT_PARSE_TIMEOUT: Duration = Duration::from_millis(250);
+pub const OPEN_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub struct D10 {
     port: Port,
@@ -27,6 +28,27 @@ impl Driver<String> for D10 {
     type Pacemaker = ();
     type Status = D10Frame;
     type Command = ();
+
+    fn keys() -> Vec<String> {
+        Port::list()
+            .into_iter()
+            .map(|name| {
+                if cfg!(target_os = "windows") {
+                    name.rmatch_indices("COM")
+                        .next()
+                        .map(|m| &name.as_str()[m.0..name.len() - 1])
+                        .unwrap()
+                        .into()
+                } else {
+                    name
+                }
+            })
+            .collect()
+    }
+
+    fn open_timeout() -> Duration {
+        OPEN_TIMEOUT
+    }
 
     fn new(name: &String) -> Option<(Self::Pacemaker, Self)> {
         match Port::open(
