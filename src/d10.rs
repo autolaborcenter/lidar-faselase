@@ -1,9 +1,6 @@
-﻿use driver::{Driver, DriverStatus};
+﻿use driver::Driver;
 use serial_port::{Port, SerialPort};
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 pub mod point;
 
@@ -11,22 +8,18 @@ use point::{Point, PortBuffer};
 
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
 const POINT_PARSE_TIMEOUT: Duration = Duration::from_millis(250);
-pub const OPEN_TIMEOUT: Duration = Duration::from_secs(3);
+const OPEN_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub struct D10 {
     port: Port,
     buffer: PortBuffer<64>,
     last_time: Instant,
-
-    frame: D10Frame,
 }
 
-#[derive(Clone)]
-pub struct D10Frame(VecDeque<Point>, VecDeque<Point>);
-
-impl Driver<String> for D10 {
+impl Driver for D10 {
+    type Key = String;
     type Pacemaker = ();
-    type Status = D10Frame;
+    type Event = Point;
     type Command = ();
 
     fn keys() -> Vec<String> {
@@ -62,29 +55,17 @@ impl Driver<String> for D10 {
                     port,
                     buffer: Default::default(),
                     last_time: Instant::now(),
-
-                    frame: D10Frame(VecDeque::new(), VecDeque::new()),
                 },
             )),
             Err(_) => None,
         }
     }
 
-    fn status<'a>(&'a self) -> &'a Self::Status {
-        &self.frame
-    }
-
     fn send(&mut self, _: (std::time::Instant, Self::Command)) {}
 
     fn join<F>(&mut self, mut f: F) -> bool
     where
-        F: FnMut(
-            &mut Self,
-            Option<(
-                std::time::Instant,
-                <Self::Status as driver::DriverStatus>::Event,
-            )>,
-        ) -> bool,
+        F: FnMut(&mut Self, Option<(std::time::Instant, Self::Event)>) -> bool,
     {
         let mut time = Instant::now();
         loop {
@@ -122,26 +103,26 @@ impl Driver<String> for D10 {
     }
 }
 
-impl DriverStatus for D10Frame {
-    type Event = Point;
+// impl DriverStatus for D10Frame {
+//     type Event = Point;
 
-    fn update(&mut self, p: Self::Event) {
-        // 交换缓存
-        if let Some(Point { len: _, dir }) = self.0.back() {
-            if p.dir <= *dir {
-                std::mem::swap(&mut self.0, &mut self.1);
-            }
-        }
-        // 销毁上一帧
-        while let Some(Point { len: _, dir }) = self.1.front() {
-            if p.dir < *dir {
-                break;
-            }
-            self.1.pop_front();
-        }
-        // 保存
-        if p.len > 0 {
-            self.0.push_back(p);
-        }
-    }
-}
+//     fn update(&mut self, p: Self::Event) {
+//         // 交换缓存
+//         if let Some(Point { len: _, dir }) = self.0.back() {
+//             if p.dir <= *dir {
+//                 std::mem::swap(&mut self.0, &mut self.1);
+//             }
+//         }
+//         // 销毁上一帧
+//         while let Some(Point { len: _, dir }) = self.1.front() {
+//             if p.dir < *dir {
+//                 break;
+//             }
+//             self.1.pop_front();
+//         }
+//         // 保存
+//         if p.len > 0 {
+//             self.0.push_back(p);
+//         }
+//     }
+// }

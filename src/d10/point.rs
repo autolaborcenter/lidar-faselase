@@ -46,7 +46,7 @@ impl TryFrom<u32> for Point {
     }
 }
 
-pub(crate) struct PortBuffer<const LEN: usize> {
+pub(super) struct PortBuffer<const LEN: usize> {
     buffer: [u8; LEN],
     cursor_r: usize,
     cursor_w: usize,
@@ -63,11 +63,11 @@ impl<const LEN: usize> Default for PortBuffer<LEN> {
 }
 
 impl<const LEN: usize> PortBuffer<LEN> {
-    pub(crate) fn as_buf<'a>(&'a mut self) -> &'a mut [u8] {
+    pub fn as_buf<'a>(&'a mut self) -> &'a mut [u8] {
         &mut self.buffer[self.cursor_w..]
     }
 
-    pub(crate) fn notify_received<'a>(&'a mut self, n: usize) {
+    pub fn notify_received<'a>(&'a mut self, n: usize) {
         self.cursor_w += n;
     }
 }
