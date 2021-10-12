@@ -10,7 +10,7 @@ fn main() {
                 println!("{}/{}", current, target);
                 sleep(Duration::from_secs(1));
             }
-            Event(_, _) => {}
+            Event(_, _, _) => {}
             Disconnected(k) => println!("disconnected: COM{}", k),
         }
         2

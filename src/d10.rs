@@ -2,9 +2,12 @@
 use serial_port::{Port, PortKey, SerialPort};
 use std::time::{Duration, Instant};
 
-pub mod point;
+pub(super) mod point;
+mod sections;
 
 use point::{Point, PortBuffer};
+
+use self::sections::Sections;
 
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
 const POINT_PARSE_TIMEOUT: Duration = Duration::from_millis(250);
@@ -14,13 +17,15 @@ pub struct D10 {
     port: Port,
     buffer: PortBuffer<64>,
     last_time: Instant,
+    sections: Sections,
+    filter: fn(Point) -> bool,
 }
 
 impl Driver for D10 {
     type Key = PortKey;
     type Pacemaker = ();
-    type Event = Point;
-    type Command = ();
+    type Event = Vec<Point>;
+    type Command = fn(Point) -> bool;
 
     fn keys() -> Vec<Self::Key> {
         Port::list().into_iter().map(|id| id.key).collect()
@@ -38,13 +43,17 @@ impl Driver for D10 {
                     port,
                     buffer: Default::default(),
                     last_time: Instant::now(),
+                    sections: Sections::new(8),
+                    filter: |_| true,
                 },
             )),
             Err(_) => None,
         }
     }
 
-    fn send(&mut self, _: (std::time::Instant, Self::Command)) {}
+    fn send(&mut self, f: Self::Command) {
+        self.filter = f;
+    }
 
     fn join<F>(&mut self, mut f: F) -> bool
     where
@@ -52,13 +61,19 @@ impl Driver for D10 {
     {
         let mut time = Instant::now();
         loop {
-            if let Some(p) = self.buffer.next() {
+            if let Some(mut p) = self.buffer.next() {
                 time = self.last_time;
                 // dir>=5760 的不是采样数据，不知道有什么用
                 if p.dir < 5760 {
-                    if !f(self, Some((time, p))) {
-                        // 如果回调指示不要继续阻塞，立即退出
-                        return true;
+                    // 过滤
+                    if p.len != 0 && !(self.filter)(p) {
+                        p.len = 0;
+                    }
+                    if let Some(section) = self.sections.push(p) {
+                        if !f(self, Some((time, section))) {
+                            // 如果回调指示不要继续阻塞，立即退出
+                            return true;
+                        }
                     }
                 }
             } else if self.last_time > time + POINT_PARSE_TIMEOUT {
@@ -85,27 +100,3 @@ impl Driver for D10 {
         }
     }
 }
-
-// impl DriverStatus for D10Frame {
-//     type Event = Point;
-
-//     fn update(&mut self, p: Self::Event) {
-//         // 交换缓存
-//         if let Some(Point { len: _, dir }) = self.0.back() {
-//             if p.dir <= *dir {
-//                 std::mem::swap(&mut self.0, &mut self.1);
-//             }
-//         }
-//         // 销毁上一帧
-//         while let Some(Point { len: _, dir }) = self.1.front() {
-//             if p.dir < *dir {
-//                 break;
-//             }
-//             self.1.pop_front();
-//         }
-//         // 保存
-//         if p.len > 0 {
-//             self.0.push_back(p);
-//         }
-//     }
-// }
