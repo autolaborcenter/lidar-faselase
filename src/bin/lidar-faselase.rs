@@ -5,13 +5,13 @@ use std::{thread::sleep, time::Duration};
 fn main() {
     SupervisorForMultiple::<d10::D10>::new().join(2, |e| {
         match e {
-            Connected(name, _) => println!("connected: {}", name),
+            Connected(k, _) => println!("connected: COM{}", k),
             ConnectFailed { current, target } => {
                 println!("{}/{}", current, target);
                 sleep(Duration::from_secs(1));
             }
             Event(_, _) => {}
-            Disconnected(name) => println!("disconnected: {}", name),
+            Disconnected(k) => println!("disconnected: COM{}", k),
         }
         2
     });

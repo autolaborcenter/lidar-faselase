@@ -1,5 +1,5 @@
 ﻿use driver::Driver;
-use serial_port::{Port, SerialPort};
+use serial_port::{Port, PortKey, SerialPort};
 use std::time::{Duration, Instant};
 
 pub mod point;
@@ -17,38 +17,21 @@ pub struct D10 {
 }
 
 impl Driver for D10 {
-    type Key = String;
+    type Key = PortKey;
     type Pacemaker = ();
     type Event = Point;
     type Command = ();
 
-    fn keys() -> Vec<String> {
-        Port::list()
-            .into_iter()
-            .map(|name| {
-                if cfg!(target_os = "windows") {
-                    name.rmatch_indices("COM")
-                        .next()
-                        .map(|m| &name.as_str()[m.0..name.len() - 1])
-                        .unwrap()
-                        .into()
-                } else {
-                    name
-                }
-            })
-            .collect()
+    fn keys() -> Vec<Self::Key> {
+        Port::list().into_iter().map(|id| id.key).collect()
     }
 
     fn open_timeout() -> Duration {
         OPEN_TIMEOUT
     }
 
-    fn new(name: &String) -> Option<(Self::Pacemaker, Self)> {
-        match Port::open(
-            name.as_str(),
-            460800,
-            POINT_RECEIVE_TIMEOUT.as_millis() as u32,
-        ) {
+    fn new(key: &Self::Key) -> Option<(Self::Pacemaker, Self)> {
+        match Port::open(key, 460800, POINT_RECEIVE_TIMEOUT.as_millis() as u32) {
             Ok(port) => Some((
                 (),
                 D10 {
