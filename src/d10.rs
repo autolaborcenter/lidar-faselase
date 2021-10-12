@@ -2,12 +2,13 @@
 use serial_port::{Port, PortKey, SerialPort};
 use std::time::{Duration, Instant};
 
+pub(super) mod frame_collector;
 pub(super) mod point;
-mod sections;
+mod section_collector;
 
 use point::{Point, PortBuffer};
 
-use self::sections::Sections;
+use self::section_collector::SectionCollector;
 
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
 const POINT_PARSE_TIMEOUT: Duration = Duration::from_millis(250);
@@ -17,14 +18,14 @@ pub struct D10 {
     port: Port,
     buffer: PortBuffer<64>,
     last_time: Instant,
-    sections: Sections,
+    sections: SectionCollector,
     filter: fn(Point) -> bool,
 }
 
 impl Driver for D10 {
     type Key = PortKey;
     type Pacemaker = ();
-    type Event = Vec<Point>;
+    type Event = (u8, Vec<Point>);
     type Command = fn(Point) -> bool;
 
     fn keys() -> Vec<Self::Key> {
@@ -43,7 +44,7 @@ impl Driver for D10 {
                     port,
                     buffer: Default::default(),
                     last_time: Instant::now(),
-                    sections: Sections::new(8),
+                    sections: SectionCollector::new(8),
                     filter: |_| true,
                 },
             )),
