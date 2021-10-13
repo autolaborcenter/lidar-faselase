@@ -44,21 +44,22 @@ impl FrameCollector {
         );
     }
 
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn write_to(&self, buf: &mut Vec<u8>) {
         const LEN: usize = std::mem::size_of::<PointZipped>();
 
-        let mut result =
-            Vec::with_capacity(self.sections.iter().map(|(s, _)| s.len()).sum::<usize>() * LEN);
-
-        for (s, _) in &self.sections {
-            unsafe {
-                let _ = result.write_all(std::slice::from_raw_parts(
+        let len = self.sections.iter().map(|(s, _)| s.len()).sum::<usize>();
+        buf.reserve(len * LEN + std::mem::size_of::<u16>());
+        unsafe {
+            let _ = buf.write_all(std::slice::from_raw_parts(
+                &(len as u16) as *const _ as *const u8,
+                std::mem::size_of::<u16>(),
+            ));
+            for (s, _) in &self.sections {
+                let _ = buf.write_all(std::slice::from_raw_parts(
                     s.as_ptr() as *const u8,
                     s.len() * LEN,
                 ));
             }
         }
-
-        result
     }
 }
