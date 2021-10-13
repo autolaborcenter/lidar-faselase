@@ -1,9 +1,8 @@
 ﻿use crate::{zip::PointZipped, Point};
-use nalgebra::Point2;
 use std::{f64::consts::PI, io::Write};
 
 pub struct FrameCollector {
-    pub sections: Vec<(Vec<PointZipped>, Vec<Point2<i16>>)>,
+    pub sections: Vec<(Vec<PointZipped>, Vec<(i16, i16)>)>,
     pub trans: (i16, i16, f64),
 }
 
@@ -35,7 +34,7 @@ impl FrameCollector {
                     let (x, y, t) = self.trans;
                     let len = *len as f64 * 10.0;
                     let dir = *dir as f64 * 2.0 * PI / 5760.0 + t;
-                    Point2::new(
+                    (
                         (dir.cos() * len).round() as i16 + x,
                         (dir.sin() * len).round() as i16 + y,
                     )
