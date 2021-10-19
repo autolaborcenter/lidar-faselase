@@ -1,6 +1,6 @@
 ﻿use driver::{Indexer, SupervisorEventForMultiple::*, SupervisorForMultiple};
 use lidar_faselase::{FrameCollector, D10};
-use std::{thread::sleep, time::Duration};
+use std::time::{Duration, Instant};
 
 fn main() {
     let mut indexer = Indexer::new(2);
@@ -12,9 +12,13 @@ fn main() {
                 collectors.iter_mut().for_each(|c| c.clear());
                 println!("connected: COM{}", k);
             }
-            ConnectFailed { current, target } => {
+            ConnectFailed {
+                current,
+                target,
+                next_try,
+            } => {
                 println!("{}/{}", current, target);
-                sleep(Duration::from_secs(1));
+                *next_try = Instant::now() + Duration::from_secs(1);
             }
             Event(k, Some((_, (i, s))), _) => {
                 if let Some(j) = indexer.find(&k) {
