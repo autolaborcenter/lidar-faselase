@@ -1,4 +1,5 @@
 ﻿/// 雷达的一个点，压缩到 3 字节
+#[derive(Clone, Copy)]
 pub struct PointZipped(pub [u8; 3]);
 
 impl PointZipped {
