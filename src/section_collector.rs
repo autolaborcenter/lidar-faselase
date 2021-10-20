@@ -1,4 +1,4 @@
-﻿use crate::Point;
+﻿use super::Point;
 
 pub(super) struct SectionCollector {
     len_each: u16,

@@ -26,7 +26,11 @@ fn assert_size() {
 
 #[test]
 fn assert_assign() {
-    const POINT: PointZipped = PointZipped::new(999, 7777);
-    assert_eq!(POINT.len(), 999);
-    assert_eq!(POINT.dir(), 7777);
+    const P0: PointZipped = PointZipped::new(999, 7777);
+    assert_eq!(P0.len(), 999);
+    assert_eq!(P0.dir(), 7777);
+
+    const P1: PointZipped = PointZipped::new(2047, 8191);
+    assert_eq!(P1.len(), 2047);
+    assert_eq!(P1.dir(), 8191);
 }
