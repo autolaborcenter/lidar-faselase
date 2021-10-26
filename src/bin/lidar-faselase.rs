@@ -7,8 +7,8 @@ fn main() {
     SupervisorForMultiple::<D10>::new().join(2, |e| {
         match e {
             Connected(k, _) => {
+                println!("connected: COM{}", &k);
                 indexer.add(k.clone());
-                println!("connected: COM{}", k);
             }
             ConnectFailed {
                 current,
@@ -21,8 +21,8 @@ fn main() {
             Event(k, Some((_, (_, _))), _) => if let Some(_) = indexer.find(&k) {},
             Event(_, _, _) => {}
             Disconnected(k) => {
+                println!("disconnected: COM{}", &k);
                 indexer.remove(k);
-                println!("disconnected: COM{}", k)
             }
         }
         2
