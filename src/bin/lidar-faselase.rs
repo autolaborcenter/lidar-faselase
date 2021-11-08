@@ -22,7 +22,7 @@ fn main() {
             Event(_, _, _) => {}
             Disconnected(k) => {
                 println!("disconnected: COM{}", &k);
-                indexer.remove(k);
+                indexer.remove(&k);
             }
         }
         2

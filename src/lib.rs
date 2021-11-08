@@ -1,4 +1,4 @@
-use driver::Driver;
+use driver::{Driver, MultipleDeviceDriver};
 use serial_port::{Port, PortKey, SerialPort};
 use std::time::{Duration, Instant};
 
@@ -27,11 +27,16 @@ pub struct D10 {
     filter: fn(Point) -> bool,
 }
 
+impl D10 {
+    pub fn filter_mut<'a>(&'a mut self) -> &'a mut fn(Point) -> bool {
+        &mut self.filter
+    }
+}
+
 impl Driver for D10 {
     type Key = PortKey;
     type Pacemaker = ();
     type Event = (u8, Vec<Point>);
-    type Command = fn(Point) -> bool;
 
     fn keys() -> Vec<Self::Key> {
         Port::list().into_iter().map(|id| id.key).collect()
@@ -55,10 +60,6 @@ impl Driver for D10 {
             )),
             Err(_) => None,
         }
-    }
-
-    fn send(&mut self, f: Self::Command) {
-        self.filter = f;
     }
 
     fn join<F>(&mut self, mut f: F) -> bool
@@ -104,5 +105,13 @@ impl Driver for D10 {
                 };
             }
         }
+    }
+}
+
+impl MultipleDeviceDriver for D10 {
+    type Command = fn(Point) -> bool;
+
+    fn send(&mut self, f: Self::Command) {
+        self.filter = f;
     }
 }
