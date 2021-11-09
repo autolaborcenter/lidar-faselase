@@ -1,4 +1,3 @@
-use lidar::LidarDriver;
 use serial_port::{Port, PortKey, SerialPort};
 use std::time::Duration;
 
@@ -7,6 +6,8 @@ mod zip;
 
 use port_buffer::PortBuffer;
 
+pub use lidar::driver;
+pub use lidar::{Lidar, LidarDriver, Point};
 pub use zip::PointZipped;
 
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
