@@ -1,4 +1,4 @@
-﻿use super::Point;
+﻿use lidar::Point;
 
 pub(super) struct PortBuffer<const LEN: usize> {
     buffer: [u8; LEN],
@@ -34,7 +34,7 @@ impl<const LEN: usize> Iterator for PortBuffer<LEN> {
             const LEN: usize = std::mem::size_of::<u32>();
             let slice = &self.buffer[self.cursor_r..self.cursor_w];
             if slice.len() >= LEN {
-                if let Ok(p) = unsafe { *(slice.as_ptr() as *const u32) }.try_into() {
+                if let Some(p) = try_parse(unsafe { *(slice.as_ptr() as *const u32) }) {
                     self.cursor_r += LEN;
                     return Some(p);
                 } else {
@@ -47,5 +47,42 @@ impl<const LEN: usize> Iterator for PortBuffer<LEN> {
                 return None;
             }
         }
+    }
+}
+
+const CBITS: [u8; 256] = [
+    0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+    3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8,
+];
+
+fn try_parse(bits: u32) -> Option<Point> {
+    if (bits & 0x80_80_80_80) != 0x80_00_00_00 {
+        return None;
+    }
+
+    let l2 = (bits & 0b1111) as u16;
+    let cb = ((bits >> 4) & 0b111) as u8; // `cb` for "check sum bits"
+    let l1 = ((bits >> 8) & 0b111_1111) as u16;
+    let d1 = ((bits >> 16) & 0b11_1111) as u16;
+    let l0 = ((bits >> 22) & 1) as u16;
+    let d0 = ((bits >> 24) & 0b111_1111) as u16;
+
+    let bytes = unsafe { std::slice::from_raw_parts(&bits as *const u32 as *const u8, 4) };
+    if bytes[1..].iter().map(|b| CBITS[*b as usize]).sum::<u8>() & 0b111 == cb {
+        let len = (l2 << 8) | (l1 << 1) | l0;
+        let dir = (d1 << 7) | d0;
+        if len < 0x800 && dir < 5760 {
+            Some(Point { len, dir })
+        } else {
+            None
+        }
+    } else {
+        None
     }
 }

@@ -1,42 +1,25 @@
-use driver::{Driver, MultipleDeviceDriver};
+use lidar::LidarDriver;
 use serial_port::{Port, PortKey, SerialPort};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-mod point;
 mod port_buffer;
-mod section_collector;
 mod zip;
 
 use port_buffer::PortBuffer;
-use section_collector::SectionCollector;
 
-pub use point::Point;
 pub use zip::PointZipped;
 
-pub extern crate driver;
-
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
-const POINT_PARSE_TIMEOUT: Duration = Duration::from_millis(250);
-const OPEN_TIMEOUT: Duration = Duration::from_secs(3);
+const OPEN_TIMEOUT: Duration = Duration::from_secs(1);
+const PARSE_TIMEOUT: Duration = Duration::from_millis(250);
 
 pub struct D10 {
     port: Port,
     buffer: PortBuffer<64>,
-    last_time: Instant,
-    sections: SectionCollector,
-    filter: fn(Point) -> bool,
 }
 
-impl D10 {
-    pub fn filter_mut<'a>(&'a mut self) -> &'a mut fn(Point) -> bool {
-        &mut self.filter
-    }
-}
-
-impl Driver for D10 {
+impl LidarDriver for D10 {
     type Key = PortKey;
-    type Pacemaker = ();
-    type Event = (u8, Vec<Point>);
 
     fn keys() -> Vec<Self::Key> {
         Port::list().into_iter().map(|id| id.key).collect()
@@ -46,72 +29,32 @@ impl Driver for D10 {
         OPEN_TIMEOUT
     }
 
-    fn new(key: &Self::Key) -> Option<(Self::Pacemaker, Self)> {
-        match Port::open(key, 460800, POINT_RECEIVE_TIMEOUT.as_millis() as u32) {
-            Ok(port) => Some((
-                (),
-                D10 {
-                    port,
-                    buffer: Default::default(),
-                    last_time: Instant::now(),
-                    sections: SectionCollector::new(8),
-                    filter: |_| true,
-                },
-            )),
-            Err(_) => None,
-        }
+    fn parse_timeout() -> Duration {
+        PARSE_TIMEOUT
     }
 
-    fn join<F>(&mut self, mut f: F) -> bool
-    where
-        F: FnMut(&mut Self, Option<(std::time::Instant, Self::Event)>) -> bool,
-    {
-        let mut time = Instant::now();
-        loop {
-            if let Some(mut p) = self.buffer.next() {
-                time = self.last_time;
-                // dir>=5760 的不是采样数据，不知道有什么用
-                if p.dir < 5760 {
-                    // 过滤
-                    if p.len != 0 && !(self.filter)(p) {
-                        p.len = 0;
-                    }
-                    if let Some(section) = self.sections.push(p) {
-                        if !f(self, Some((time, section))) {
-                            // 如果回调指示不要继续阻塞，立即退出
-                            return true;
-                        }
-                    }
-                }
-            } else if self.last_time > time + POINT_PARSE_TIMEOUT {
-                // 解析超时
-                return false;
-            } else {
-                // 重新接收
-                match self.port.read(self.buffer.as_buf()) {
-                    // 成功接收
-                    Some(n) => {
-                        if n == 0 {
-                            // 串口超时
-                            return false;
-                        } else {
-                            // 成功接收
-                            self.last_time = Instant::now();
-                            self.buffer.notify_received(n);
-                        }
-                    }
-                    // 无法接收
-                    None => return false,
-                };
-            }
-        }
+    fn max_dir() -> u16 {
+        5760
     }
-}
 
-impl MultipleDeviceDriver for D10 {
-    type Command = fn(Point) -> bool;
+    fn new(key: &Self::Key) -> Option<Self> {
+        Port::open(key, 460800, POINT_RECEIVE_TIMEOUT.as_millis() as u32)
+            .ok()
+            .map(|port| Self {
+                port,
+                buffer: Default::default(),
+            })
+    }
 
-    fn send(&mut self, f: Self::Command) {
-        self.filter = f;
+    fn receive(&mut self) -> bool {
+        self.port
+            .read(self.buffer.as_buf())
+            .filter(|n| *n > 0)
+            .map(|n| self.buffer.notify_received(n))
+            .is_some()
+    }
+
+    fn parse(&mut self) -> Option<lidar::Point> {
+        self.buffer.next()
     }
 }

@@ -1,10 +1,13 @@
-﻿use driver::{Indexer, SupervisorEventForMultiple::*, SupervisorForMultiple};
+﻿use lidar::{
+    driver::{Indexer, SupervisorEventForMultiple::*, SupervisorForMultiple},
+    Lidar,
+};
 use lidar_faselase::D10;
 use std::time::{Duration, Instant};
 
 fn main() {
     let mut indexer = Indexer::new(2);
-    SupervisorForMultiple::<D10>::new().join(2, |e| {
+    SupervisorForMultiple::<Lidar<D10>>::new().join(2, |e| {
         match e {
             Connected(k, _) => {
                 println!("connected: COM{}", &k);
