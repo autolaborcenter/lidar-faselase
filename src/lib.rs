@@ -2,13 +2,11 @@ use serial_port::{Port, PortKey, SerialPort};
 use std::time::Duration;
 
 mod port_buffer;
-mod zip;
 
 use port_buffer::PortBuffer;
 
 pub use lidar::driver;
 pub use lidar::{Lidar, LidarDriver, Point};
-pub use zip::PointZipped;
 
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
 const OPEN_TIMEOUT: Duration = Duration::from_secs(1);
@@ -58,4 +56,33 @@ impl LidarDriver for D10 {
     fn parse(&mut self) -> Option<lidar::Point> {
         self.buffer.next()
     }
+}
+
+#[inline]
+pub const fn zip(p: Point) -> [u8; 3] {
+    let Point { len, dir } = p;
+    [len as u8, dir as u8, ((len >> 8 << 5) | (dir >> 8)) as u8]
+}
+
+#[inline]
+pub const unsafe fn unzip(buf: &[u8]) -> Point {
+    Point {
+        len: (buf[2] as u16 >> 5 << 8) | (buf[0] as u16),
+        dir: (((buf[2] & 0x1f) as u16) << 8) | (buf[1] as u16),
+    }
+}
+
+#[test]
+fn assert_assign() {
+    const P0: Point = Point {
+        len: 999,
+        dir: 7777,
+    };
+    unsafe { assert_eq!(unzip(&zip(P0)), P0) };
+
+    const P1: Point = Point {
+        len: 2047,
+        dir: 8191,
+    };
+    unsafe { assert_eq!(unzip(&zip(P1)), P1) };
 }
