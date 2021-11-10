@@ -5,12 +5,17 @@ mod port_buffer;
 
 use port_buffer::PortBuffer;
 
-pub use lidar::driver;
-pub use lidar::{Lidar, LidarDriver, Point};
+pub use lidar::{driver, Config, Lidar, LidarDriver, Point};
 
 const POINT_RECEIVE_TIMEOUT: Duration = Duration::from_millis(200);
 const OPEN_TIMEOUT: Duration = Duration::from_secs(1);
 const PARSE_TIMEOUT: Duration = Duration::from_millis(250);
+
+pub const CONFIG: Config = Config {
+    len_meter: 100,
+    dir_round: 5760,
+    zipped_size: 3,
+};
 
 pub struct D10 {
     port: Port,
@@ -59,7 +64,7 @@ impl LidarDriver for D10 {
 }
 
 #[inline]
-pub const fn zip(p: Point) -> [u8; 3] {
+pub const fn zip(p: Point) -> [u8; CONFIG.zipped_size] {
     let Point { len, dir } = p;
     [len as u8, dir as u8, ((len >> 8 << 5) | (dir >> 8)) as u8]
 }
@@ -74,15 +79,24 @@ pub const unsafe fn unzip(buf: &[u8]) -> Point {
 
 #[test]
 fn assert_assign() {
+    // 随便的一组值
     const P0: Point = Point {
         len: 999,
         dir: 7777,
     };
     unsafe { assert_eq!(unzip(&zip(P0)), P0) };
 
+    // 设备可能的最大值
     const P1: Point = Point {
+        len: 2000,
+        dir: 5759,
+    };
+    unsafe { assert_eq!(unzip(&zip(P1)), P1) };
+
+    // 数据结构支持的最大值
+    const P2: Point = Point {
         len: 2047,
         dir: 8191,
     };
-    unsafe { assert_eq!(unzip(&zip(P1)), P1) };
+    unsafe { assert_eq!(unzip(&zip(P2)), P2) };
 }
