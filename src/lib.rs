@@ -38,7 +38,7 @@ impl LidarDriver for D10 {
     }
 
     fn max_dir() -> u16 {
-        5760
+        CONFIG.dir_round
     }
 
     fn new(key: &Self::Key) -> Option<Self> {
